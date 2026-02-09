@@ -11,14 +11,25 @@ PHI3_MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
 
 
 def _ensure_rope_scaling(config: Any) -> None:
-    # Phi-3 Hub config has rope_scaling: null; cached modeling code expects a dict with "type".
-    # Use "default" (no scaling) for 4k context; some cached code does not accept "yarn".
-    safe_rope = {"type": "default", "factor": 1.0}
+    # Phi-3 Hub config has rope_scaling: null. The Hub's modeling_phi3.py uses Phi3RotaryEmbedding
+    # when rope_scaling is None (correct for 4k). If we set a dict, it only accepts type "longrope"
+    # (and needs short_factor, long_factor, original_max_position_embeddings). So leave None as-is.
     current = getattr(config, "rope_scaling", None)
     if current is None:
-        config.rope_scaling = dict(safe_rope)
-    elif isinstance(current, dict) and current.get("type") is None:
-        config.rope_scaling = {**current, "type": "default", "factor": current.get("factor", 1.0)}
+        return  # leave None -> standard RoPE for 4k context
+    if isinstance(current, dict) and current.get("type") is None:
+        # Config has rope_scaling dict but missing "type"; use "longrope" for extended context.
+        max_pos = getattr(config, "max_position_embeddings", 4096)
+        orig_max = getattr(config, "original_max_position_embeddings", max_pos)
+        config.rope_scaling = {
+            **current,
+            "type": "longrope",
+            "short_factor": current.get("short_factor", [1.0]),
+            "long_factor": current.get("long_factor", [1.0]),
+            "factor": current.get("factor", 1.0),
+        }
+        if not hasattr(config, "original_max_position_embeddings"):
+            config.original_max_position_embeddings = orig_max
     if hasattr(config, "__dict__"):
         config.__dict__["rope_scaling"] = config.rope_scaling
 
