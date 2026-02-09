@@ -22,7 +22,7 @@ _tokenizer = None
 
 
 def _load_model(adapter_path: str = DEFAULT_ADAPTER_PATH):
-    """Load Phi-3 Mini + LoRA adapters (lazy, once)."""
+    """Load Phi-3 Mini + LoRA adapters (lazy, once) for full mode."""
     global _model, _tokenizer
     if _model is not None:
         return _model, _tokenizer
@@ -35,25 +35,18 @@ def _load_model(adapter_path: str = DEFAULT_ADAPTER_PATH):
         )
 
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    base_model_id = config.TINY_DEMO_MODEL_ID if config.DEMO_MODE else PHI3_MODEL_ID
+    base_model_id = PHI3_MODEL_ID
     # Load tokenizer from base model; adapter dir may lack full tokenizer or need sentencepiece/tiktoken.
     _tokenizer = AutoTokenizer.from_pretrained(base_model_id, trust_remote_code=True)
     if _tokenizer.pad_token is None:
         _tokenizer.pad_token = _tokenizer.eos_token
 
-    if config.DEMO_MODE:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        base = AutoModelForCausalLM.from_pretrained(
-            base_model_id,
-            trust_remote_code=True,
-        ).to(device)
-    else:
-        base = AutoModelForCausalLM.from_pretrained(
-            base_model_id,
-            torch_dtype=dtype,
-            device_map="auto",
-            trust_remote_code=True,
-        )
+    base = AutoModelForCausalLM.from_pretrained(
+        base_model_id,
+        torch_dtype=dtype,
+        device_map="auto",
+        trust_remote_code=True,
+    )
     _model = PeftModel.from_pretrained(base, adapter_path)
     _model.eval()
     return _model, _tokenizer
@@ -110,8 +103,54 @@ def generate_response(
     return response
 
 
-def run_chat(adapter_path: str = DEFAULT_ADAPTER_PATH) -> None:
+def run_chat(adapter_path: str = DEFAULT_ADAPTER_PATH, demo: bool = False) -> None:
     """Interactive loop: ask for instructions and print model responses."""
+    if demo:
+        config.DEMO_MODE = True
+        model_id = config.TINY_DEMO_MODEL_ID
+        print("Demo chat mode (tiny model, no LoRA)")
+        print(f"Loading tiny model: {model_id}")
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = AutoModelForCausalLM.from_pretrained(model_id).to(device)
+        model.eval()
+
+        print("Ready. Enter an instruction (or 'quit' to exit).\n")
+        while True:
+            try:
+                instruction = input("Instruction: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nBye.")
+                break
+            if not instruction:
+                continue
+            if instruction.lower() in ("quit", "exit", "q"):
+                print("Bye.")
+                break
+
+            prompt = _prompt(instruction)
+            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=128,
+                    do_sample=True,
+                    temperature=0.7,
+                    top_p=0.9,
+                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+                )
+            full = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            if "Response:" in full:
+                response = full.split("Response:")[-1].strip()
+            else:
+                response = full.strip()
+            print("Response:", response)
+            print()
+        return
+
+    config.DEMO_MODE = False
     print("Phi-3 Mini + LoRA instruction response")
     print("Loading model (this may take a moment)...")
     _load_model(adapter_path)

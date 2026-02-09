@@ -2,8 +2,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from src import config
-
 _project_root = Path(__file__).resolve().parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
@@ -64,26 +62,23 @@ def main():
 
 
 def _run_train(args: argparse.Namespace) -> None:
-    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.training.train_lora import train
 
     import src.training.train_lora as train_lora
     train_lora.OUTPUT_DIR = args.adapter_path
-    train()
+    train(demo=args.demo)
 
 
 def _run_eval(args: argparse.Namespace) -> None:
-    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.evaluation.evaluate import run_evaluation
 
-    run_evaluation(adapter_path=args.adapter_path, seed=args.seed)
+    run_evaluation(adapter_path=args.adapter_path, seed=args.seed, demo=args.demo)
 
 
 def _run_chat(args: argparse.Namespace) -> None:
-    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.inference.generate import run_chat
 
-    run_chat(adapter_path=args.adapter_path)
+    run_chat(adapter_path=args.adapter_path, demo=args.demo)
 
 
 if __name__ == "__main__":

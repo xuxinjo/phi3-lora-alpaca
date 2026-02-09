@@ -149,9 +149,53 @@ def compute_rouge_bleu(predictions: list[str], references: list[str]) -> dict:
     }
 
 
-def run_evaluation(adapter_path: str, seed: int = 42) -> None:
+def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> None:
     random.seed(seed)
     torch.manual_seed(seed)
+
+    if demo:
+        config.DEMO_MODE = True
+        print("Running evaluation in DEMO MODE")
+        model_id = config.TINY_DEMO_MODEL_ID
+
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        base_model = AutoModelForCausalLM.from_pretrained(model_id).to(device)
+
+        # Tiny synthetic evaluation set.
+        examples = [
+            {
+                "instruction": "Say hello.",
+                "input": "",
+                "output": "Hello from demo mode.",
+            },
+            {
+                "instruction": "Explain what this demo is doing.",
+                "input": "",
+                "output": "It runs a lightweight training and evaluation loop.",
+            },
+        ]
+
+        perp_examples = examples
+        rouge_bleu_examples = examples
+        references = [ex["output"] for ex in rouge_bleu_examples]
+
+        print("\n--- Demo base model (tiny GPT-style model) ---")
+        base_ppl = compute_perplexity(base_model, tokenizer, perp_examples, max_length=64, batch_size=1)
+        print(f"  Perplexity (demo): {base_ppl:.4f}")
+
+        base_predictions = generate_responses(base_model, tokenizer, rouge_bleu_examples, max_new_tokens=32)
+        base_metrics = compute_rouge_bleu(base_predictions, references)
+        print(f"  ROUGE-L (demo): {base_metrics['rougeL']:.4f}")
+        print(f"  BLEU (demo):    {base_metrics['bleu']:.4f}")
+
+        print("\nDemo evaluation complete (no LoRA, no Alpaca dataset loaded).")
+        return
+
+    config.DEMO_MODE = False
 
     print("Loading validation data (yahma/alpaca-cleaned)...")
     ds = load_dataset(ALPACA_DATASET_ID, split="train", trust_remote_code=True)
