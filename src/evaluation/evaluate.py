@@ -180,19 +180,34 @@ def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> Non
         ]
 
         perp_examples = examples
-        rouge_bleu_examples = examples
-        references = [ex["output"] for ex in rouge_bleu_examples]
 
         print("\n--- Demo base model (tiny GPT-style model) ---")
         base_ppl = compute_perplexity(base_model, tokenizer, perp_examples, max_length=64, batch_size=1)
         print(f"  Perplexity (demo): {base_ppl:.4f}")
 
-        base_predictions = generate_responses(base_model, tokenizer, rouge_bleu_examples, max_new_tokens=32)
-        base_metrics = compute_rouge_bleu(base_predictions, references)
-        print(f"  ROUGE-L (demo): {base_metrics['rougeL']:.4f}")
-        print(f"  BLEU (demo):    {base_metrics['bleu']:.4f}")
+        # For demo mode we keep dependencies minimal: skip ROUGE/BLEU, just
+        # show a couple of generated responses and perplexity.
+        print("\nDemo sample generations:")
+        for ex in examples:
+            prompt = _prompt_for_generation(ex["instruction"], ex.get("input") or "")
+            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            with torch.no_grad():
+                out = base_model.generate(
+                    **inputs,
+                    max_new_tokens=32,
+                    do_sample=True,
+                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+                )
+            full = tokenizer.decode(out[0], skip_special_tokens=True)
+            if "Response:" in full:
+                pred = full.split("Response:")[-1].strip()
+            else:
+                pred = full.strip()
+            print(f"- Instruction: {ex['instruction']}")
+            print(f"  Target:      {ex['output']}")
+            print(f"  Prediction:  {pred}\n")
 
-        print("\nDemo evaluation complete (no LoRA, no Alpaca dataset loaded).")
+        print("Demo evaluation complete (no LoRA, no Alpaca dataset loaded, ROUGE/BLEU skipped).")
         return
 
     config.DEMO_MODE = False
