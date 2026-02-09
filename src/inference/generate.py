@@ -33,7 +33,8 @@ def _load_model(adapter_path: str = DEFAULT_ADAPTER_PATH):
         )
 
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    _tokenizer = AutoTokenizer.from_pretrained(adapter_path, trust_remote_code=True)
+    # Load tokenizer from base model; adapter dir may lack full tokenizer or need sentencepiece/tiktoken.
+    _tokenizer = AutoTokenizer.from_pretrained(PHI3_MODEL_ID, trust_remote_code=True)
     if _tokenizer.pad_token is None:
         _tokenizer.pad_token = _tokenizer.eos_token
 

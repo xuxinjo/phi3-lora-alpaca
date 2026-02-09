@@ -11,7 +11,9 @@ from typing import Optional
 
 import torch
 from peft import PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+
+from src.models.load_model import _ensure_rope_scaling
 
 DEFAULT_BASE_MODEL = "microsoft/Phi-3-mini-4k-instruct"
 DEFAULT_LORA_PATH = "checkpoints/lora_phi3"
@@ -39,11 +41,15 @@ def merge_lora(
         torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 
     print("Loading base model...")
+    config = AutoConfig.from_pretrained(base_model, trust_remote_code=trust_remote_code)
+    _ensure_rope_scaling(config)
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
+        config=config,
         torch_dtype=torch_dtype,
         device_map="auto",
         trust_remote_code=trust_remote_code,
+        attn_implementation="eager",
     )
     tokenizer = AutoTokenizer.from_pretrained(
         base_model,

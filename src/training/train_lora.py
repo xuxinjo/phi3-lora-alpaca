@@ -29,9 +29,9 @@ def train() -> None:
     print("Loading Alpaca dataset...")
     train_loader, val_loader = get_alpaca_dataloaders(
         tokenizer=tokenizer,
-        max_length=512,
-        train_batch_size=64,
-        val_batch_size=64,
+        max_length=256,
+        train_batch_size=8,
+        val_batch_size=4,
         val_ratio=0.02,
         seed=42,
     )
@@ -41,9 +41,9 @@ def train() -> None:
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         num_train_epochs=3,
-        per_device_train_batch_size=64,
-        per_device_eval_batch_size=64,
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=2,
+        per_device_eval_batch_size=2,
+        gradient_accumulation_steps=8,
         learning_rate=2e-4,
         fp16=True,
         logging_steps=20,

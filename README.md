@@ -8,7 +8,7 @@ This project fine-tunes **Microsoft Phi-3 Mini** using **Low-Rank Adaptation (Lo
 
 ## 2. Model Description (Phi-3 Mini)
 
-**Phi-3 Mini** is a 3.8B-parameter language model from Microsoft, designed for instruction-following and conversational AI. This project uses `microsoft/Phi-3-mini-4k-instruct`, which:
+**Phi-3 Mini** is a 3.8B-parameter language model from Microsoft, designed for instruction-following and dialogue. This project uses `microsoft/Phi-3-mini-4k-instruct`, which:
 
 - Has a 4K context window
 - Is instruction-tuned out of the box
@@ -109,6 +109,7 @@ phi3-lora-alpaca/
    ```bash
    pip install -r requirements.txt
    ```
+   On **Google Colab**, if you see `DynamicCache.from_legacy_cache` or Phi-3 loading errors, upgrade transformers: `pip install -U "transformers>=4.44.0"`.
 
 4. **Optional:** Log in to Hugging Face for model access
    ```bash

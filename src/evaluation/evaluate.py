@@ -49,10 +49,9 @@ def load_base_model():
 
 
 def load_finetuned_model(adapter_path: str):
-    """Load base Phi-3 and apply LoRA adapter; tokenizer from adapter dir."""
-    model, _ = load_phi3_4bit()
+    """Load base Phi-3 and apply LoRA adapter; tokenizer from base model (adapter dir may lack full tokenizer)."""
+    model, tokenizer = load_phi3_4bit()
     model = PeftModel.from_pretrained(model, adapter_path)
-    tokenizer = AutoTokenizer.from_pretrained(adapter_path)
     return model, tokenizer
 
 
@@ -61,7 +60,7 @@ def compute_perplexity(
     tokenizer: AutoTokenizer,
     examples: list[dict],
     max_length: int = MAX_LENGTH,
-    batch_size: int = 4,
+    batch_size: int = 2,
 ) -> float:
     """Compute mean perplexity (exp(mean loss)) on examples."""
     model.eval()
