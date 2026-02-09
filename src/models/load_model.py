@@ -1,13 +1,26 @@
 """Load Phi-3 Mini in 4-bit quantized mode, ready for LoRA fine-tuning."""
 
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from peft import prepare_model_for_kbit_training
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 
 PHI3_MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+
+
+def _ensure_rope_scaling(config: Any) -> None:
+    # Phi-3 Hub config has rope_scaling: null; cached modeling code expects a dict with "type".
+    # Use "default" (no scaling) for 4k context; some cached code does not accept "yarn".
+    safe_rope = {"type": "default", "factor": 1.0}
+    current = getattr(config, "rope_scaling", None)
+    if current is None:
+        config.rope_scaling = dict(safe_rope)
+    elif isinstance(current, dict) and current.get("type") is None:
+        config.rope_scaling = {**current, "type": "default", "factor": current.get("factor", 1.0)}
+    if hasattr(config, "__dict__"):
+        config.__dict__["rope_scaling"] = config.rope_scaling
 
 
 def load_phi3_4bit(
@@ -49,12 +62,17 @@ def load_phi3_4bit(
         bnb_4bit_use_double_quant=True,
     )
 
+    config = AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)
+    _ensure_rope_scaling(config)
+
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
+        config=config,
         quantization_config=quantization_config,
         device_map="auto",
         trust_remote_code=trust_remote_code,
         torch_dtype=bnb_4bit_compute_dtype,
+        attn_implementation="eager",
     )
 
     model = prepare_model_for_kbit_training(model)

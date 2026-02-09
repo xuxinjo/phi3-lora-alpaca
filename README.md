@@ -72,6 +72,7 @@ phi3-lora-alpaca/
     │   ├── __init__.py
     │   ├── load_model.py       # 4-bit model loading
     │   ├── lora_config.py      # LoRA configuration
+    │   ├── merge_lora.py       # Merge LoRA adapter into base model
     │   └── phi3_lora.py        # Phi-3 + LoRA setup
     └── training/
         ├── __init__.py
@@ -140,7 +141,7 @@ python main.py train --adapter_path my_adapters/phi3_alpaca
 
 ## 8. How to Run Evaluation
 
-Evaluation compares the base Phi-3 Mini with the fine-tuned LoRA model on a held-out validation set. It reports **Perplexity**, **ROUGE-L**, and **BLEU** scores.
+Evaluation compares the base Phi-3 Mini with the fine-tuned LoRA model on a held-out validation set. Metrics include **Perplexity**, **ROUGE-L**, and **BLEU**.
 
 ```bash
 python main.py eval
