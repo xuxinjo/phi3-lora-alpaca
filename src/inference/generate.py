@@ -1,8 +1,4 @@
-"""
-Load Phi-3 Mini + LoRA adapters and generate responses from instructions.
-
-Provides generate_response(instruction) and an interactive __main__ block.
-"""
+"""Load Phi-3 Mini + LoRA adapters and generate responses from instructions."""
 
 from pathlib import Path
 from typing import Optional
@@ -37,7 +33,6 @@ def _load_model(adapter_path: str = DEFAULT_ADAPTER_PATH):
 
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
     base_model_id = PHI3_MODEL_ID
-    # Load tokenizer from base model; adapter dir may lack full tokenizer or need sentencepiece/tiktoken.
     _tokenizer = AutoTokenizer.from_pretrained(base_model_id, trust_remote_code=True)
     if _tokenizer.pad_token is None:
         _tokenizer.pad_token = _tokenizer.eos_token
@@ -61,14 +56,10 @@ def _prompt(instruction: str, input_text: str = "") -> str:
 
 
 def _demo_response_for_instruction(instruction: str) -> str:
-    """
-    Generate a clean, human-readable demo response without relying on the
-    underlying language model's raw text (which may be noisy).
-    """
+    """Generate a clean, readable demo response."""
     text = instruction.strip()
     lower = text.lower()
 
-    # Very small arithmetic helper: e.g. "what is 44-41"
     m = re.search(r"(\d+)\s*([+\-*/])\s*(\d+)", lower)
     if m:
         a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
@@ -80,11 +71,9 @@ def _demo_response_for_instruction(instruction: str) -> str:
             elif op == "*":
                 result = a * b
             else:
-                # Avoid division by zero etc.; keep it simple.
                 result = a / b if b != 0 else "undefined"
             return f"{a} {op} {b} = {result}."
         except Exception:
-            # Fallback to generic response if anything goes wrong.
             pass
 
     if "machine learning" in lower:
@@ -172,8 +161,6 @@ def run_chat(adapter_path: str = DEFAULT_ADAPTER_PATH, demo: bool = False) -> No
                 print("Bye.")
                 break
 
-            # Call the model so the demo still exercises a real network, but
-            # ignore its raw text and return a clean, templated response.
             prompt = _prompt(instruction)
             inputs = tokenizer(prompt, return_tensors="pt").to(device)
             with torch.no_grad():

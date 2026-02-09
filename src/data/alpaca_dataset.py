@@ -50,7 +50,6 @@ def get_alpaca_dataloaders(
         (train_dataloader, val_dataloader).
     """
     if config.DEMO_MODE:
-        # Override settings for a very small, fast demo run.
         max_length = min(max_length, config.DEMO_MAX_LENGTH)
         train_batch_size = config.DEMO_TRAIN_BATCH_SIZE
         val_batch_size = config.DEMO_VAL_BATCH_SIZE

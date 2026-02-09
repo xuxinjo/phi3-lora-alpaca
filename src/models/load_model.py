@@ -13,11 +13,7 @@ PHI3_MODEL_ID = config.PHI3_MODEL_ID
 
 
 def _ensure_rope_scaling(config: Any) -> None:
-    # Phi-3 Hub config can be rope_scaling: null or a dict. The Hub's modeling_phi3.py uses
-    # Phi3RotaryEmbedding when rope_scaling is None (correct for 4k). If it's a dict, it must
-    # have "type" (only "longrope" is accepted). New Hub configs sometimes have a dict without
-    # "type", which causes KeyError in _init_rope. Normalize: leave None as-is; if dict missing
-    # "type", set rope_scaling to None for 4k so we use standard RoPE.
+    """Normalize rope_scaling config to avoid KeyError in Phi-3 model initialization."""
     current_rs = getattr(config, "rope_scaling", None)
     if current_rs is None:
         return
@@ -38,23 +34,18 @@ def load_phi3_4bit(
     """
     Load Phi-3 Mini with 4-bit quantization and prepare it for LoRA fine-tuning.
 
-    - Loads the tokenizer from the model repo.
-    - Loads the model with device_map="auto" and bitsandbytes 4-bit config.
-    - Calls prepare_model_for_kbit_training so LoRA can be applied later.
-
     Args:
         model_id: HuggingFace model ID (default: Phi-3 Mini 4k instruct).
-        bnb_4bit_compute_dtype: Dtype for 4-bit compute (e.g. torch.bfloat16). Defaults to bfloat16.
+        bnb_4bit_compute_dtype: Dtype for 4-bit compute. Defaults to bfloat16.
         bnb_4bit_quant_type: Quantization type: "nf4" or "fp4".
         trust_remote_code: Whether to trust custom model code.
 
     Returns:
-        (model, tokenizer) with model ready for LoRA (e.g. get_peft_model).
+        (model, tokenizer) with model ready for LoRA.
     """
     if bnb_4bit_compute_dtype is None:
         bnb_4bit_compute_dtype = torch.bfloat16
 
-    # Demo mode: load a tiny model on CPU (or lightweight CUDA) without quantization.
     if config.DEMO_MODE:
         tiny_id = config.TINY_DEMO_MODEL_ID
         tokenizer = AutoTokenizer.from_pretrained(tiny_id, trust_remote_code=trust_remote_code)
@@ -69,7 +60,6 @@ def load_phi3_4bit(
         model.to(device)
         return model, tokenizer
 
-    # Full mode: 4-bit Phi-3 Mini with bitsandbytes quantization.
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
         trust_remote_code=trust_remote_code,

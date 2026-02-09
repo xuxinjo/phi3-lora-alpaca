@@ -1,10 +1,4 @@
-"""
-Training entry point.
-
-- In full mode: trains Phi-3 Mini with LoRA on Alpaca using transformers.Trainer.
-- In demo mode: runs a very lightweight loop on a tiny model and a small subset
-  of the dataset, with a fast-moving progress bar.
-"""
+"""Training entry point for LoRA fine-tuning."""
 
 from pathlib import Path
 import time
@@ -30,10 +24,10 @@ OUTPUT_DIR = "checkpoints/lora_phi3"
 
 def train(demo: bool = False) -> None:
     """
-    Train entry point.
+    Train Phi-3 Mini with LoRA on Alpaca dataset.
 
-    - demo=False: full Phi-3 + LoRA training on Alpaca.
-    - demo=True: tiny model, tiny synthetic dataset, very fast loop.
+    Args:
+        demo: If True, runs lightweight demo mode with tiny model and synthetic data.
     """
     if demo:
         config.DEMO_MODE = True
@@ -49,7 +43,6 @@ def train(demo: bool = False) -> None:
         model = AutoModelForCausalLM.from_pretrained(model_id).to(device)
         model.train()
 
-        # Tiny synthetic dataset (20 samples).
         texts = [
             f"Instruction: Demo instruction {i}\nInput: \nResponse: Demo response {i}."
             for i in range(20)
@@ -83,8 +76,7 @@ def train(demo: bool = False) -> None:
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-
-            time.sleep(0.05)  # make progress visible but very light
+            time.sleep(0.05)
 
         Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
         model.save_pretrained(OUTPUT_DIR)
@@ -92,7 +84,6 @@ def train(demo: bool = False) -> None:
         print(f"Demo training complete. Tiny model saved to {OUTPUT_DIR}")
         return
 
-    # Full mode: standard Phi-3 + LoRA training.
     config.DEMO_MODE = False
 
     print("Loading model...")

@@ -63,8 +63,8 @@ def main():
 
 def _run_train(args: argparse.Namespace) -> None:
     from src.training.train_lora import train
-
     import src.training.train_lora as train_lora
+
     train_lora.OUTPUT_DIR = args.adapter_path
     train(demo=args.demo)
 

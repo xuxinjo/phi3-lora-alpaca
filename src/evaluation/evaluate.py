@@ -1,11 +1,4 @@
-"""
-Evaluate fine-tuned LoRA Phi-3 vs base Phi-3 on a held-out validation set.
-
-- Loads base and fine-tuned models
-- Computes perplexity on validation set
-- Computes ROUGE-L and BLEU on 200 random samples
-- Prints before/after comparison
-"""
+"""Evaluate fine-tuned LoRA Phi-3 vs base Phi-3 on a held-out validation set."""
 
 import argparse
 import math
@@ -165,7 +158,6 @@ def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> Non
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         base_model = AutoModelForCausalLM.from_pretrained(model_id).to(device)
 
-        # Tiny synthetic evaluation set.
         examples = [
             {
                 "instruction": "Say hello.",
@@ -185,8 +177,6 @@ def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> Non
         base_ppl = compute_perplexity(base_model, tokenizer, perp_examples, max_length=64, batch_size=1)
         print(f"  Perplexity (demo): {base_ppl:.4f}")
 
-        # For demo mode we keep dependencies minimal: skip ROUGE/BLEU, just
-        # show a couple of generated responses and perplexity.
         print("\nDemo sample generations:")
         for ex in examples:
             prompt = _prompt_for_generation(ex["instruction"], ex.get("input") or "")
@@ -207,7 +197,7 @@ def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> Non
             print(f"  Target:      {ex['output']}")
             print(f"  Prediction:  {pred}\n")
 
-        print("Demo evaluation complete (no LoRA, no Alpaca dataset loaded, ROUGE/BLEU skipped).")
+        print("Demo evaluation complete.")
         return
 
     config.DEMO_MODE = False
@@ -216,26 +206,14 @@ def run_evaluation(adapter_path: str, seed: int = 42, demo: bool = False) -> Non
     ds = load_dataset(ALPACA_DATASET_ID, split="train", trust_remote_code=True)
     split = ds.train_test_split(test_size=0.05, seed=seed)
     val = split["test"]
-    if config.DEMO_MODE:
-        max_samples = min(config.DEMO_DATASET_MAX_SAMPLES, len(val))
-        val = val.select(range(max_samples))
-
     val_list = [val[i] for i in range(len(val))]
 
-    if config.DEMO_MODE:
-        max_perp = min(config.DEMO_DATASET_MAX_SAMPLES, len(val_list))
-        perp_examples = val_list[:max_perp]
-    else:
-        perp_examples = val_list[: min(PERPLEXITY_MAX_SAMPLES, len(val_list))]
+    perp_examples = val_list[: min(PERPLEXITY_MAX_SAMPLES, len(val_list))]
 
-    if config.DEMO_MODE:
-        sample_count = min(config.DEMO_DATASET_MAX_SAMPLES, len(val_list))
-        rouge_bleu_indices = list(range(sample_count))
+    if len(val_list) >= NUM_ROUGE_BLEU_SAMPLES:
+        rouge_bleu_indices = random.sample(range(len(val_list)), NUM_ROUGE_BLEU_SAMPLES)
     else:
-        if len(val_list) >= NUM_ROUGE_BLEU_SAMPLES:
-            rouge_bleu_indices = random.sample(range(len(val_list)), NUM_ROUGE_BLEU_SAMPLES)
-        else:
-            rouge_bleu_indices = list(range(len(val_list)))
+        rouge_bleu_indices = list(range(len(val_list)))
     rouge_bleu_examples = [val_list[i] for i in rouge_bleu_indices]
     references = [ex["output"].strip() for ex in rouge_bleu_examples]
 

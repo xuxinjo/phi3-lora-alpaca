@@ -1,9 +1,4 @@
-"""
-Merge LoRA adapter weights into the base Phi-3 Mini model.
-
-Produces a standalone HuggingFace model loadable with
-AutoModelForCausalLM.from_pretrained() without PEFT.
-"""
+"""Merge LoRA adapter weights into the base Phi-3 Mini model."""
 
 import argparse
 from pathlib import Path
@@ -35,7 +30,7 @@ def merge_lora(
         base_model: HuggingFace model ID or path to base model.
         lora_path: Path to LoRA adapter directory.
         output_path: Directory to save merged model.
-        torch_dtype: Model dtype (fp16 or fp32). Defaults to bfloat16 if available else float32.
+        torch_dtype: Model dtype. Defaults to bfloat16 if available else float32.
         trust_remote_code: Whether to trust custom model code.
     """
     if torch_dtype is None:

@@ -132,11 +132,27 @@ python main.py train
 | Option          | Default                 | Description                          |
 |-----------------|-------------------------|--------------------------------------|
 | `--adapter_path`| `checkpoints/lora_phi3` | Directory to save the LoRA adapter   |
+| `--demo`        | `False`                 | Run in lightweight demo mode         |
 
 Example with a custom adapter path:
 ```bash
 python main.py train --adapter_path my_adapters/phi3_alpaca
 ```
+
+### Demo Mode
+
+For quick testing or presentations, use demo mode with the `--demo` flag:
+
+```bash
+python main.py train --demo
+```
+
+Demo mode uses a small GPT-style model and synthetic data, completing training in seconds with minimal GPU usage. This is ideal for:
+- Quick environment verification
+- Live demonstrations
+- Testing the pipeline without full resources
+
+**Note:** Demo mode does not use Phi-3, LoRA, or the Alpaca dataset. It provides a fast simulation of the training workflow.
 
 ---
 
@@ -154,13 +170,19 @@ python main.py eval
 |-----------------|-------------------------|------------------------------------|
 | `--adapter_path`| `checkpoints/lora_phi3` | Path to the saved LoRA adapter     |
 | `--seed`        | `42`                    | Random seed for validation split   |
+| `--demo`        | `False`                 | Run in lightweight demo mode       |
 
 Example:
 ```bash
 python main.py eval --adapter_path checkpoints/lora_phi3 --seed 42
 ```
 
-> **Note:** You must run training first. If the adapter path does not exist, evaluation will fail.
+Demo mode evaluation:
+```bash
+python main.py eval --demo
+```
+
+> **Note:** You must run training first (or use `--demo`). If the adapter path does not exist, evaluation will fail.
 
 ---
 
@@ -177,10 +199,16 @@ python main.py chat
 | Option          | Default                 | Description                        |
 |-----------------|-------------------------|------------------------------------|
 | `--adapter_path`| `checkpoints/lora_phi3` | Path to the saved LoRA adapter     |
+| `--demo`        | `False`                 | Run in lightweight demo mode       |
 
 Example:
 ```bash
 python main.py chat --adapter_path checkpoints/lora_phi3
+```
+
+Demo mode chat:
+```bash
+python main.py chat --demo
 ```
 
 Type `quit`, `exit`, or `q` to exit the chat.
@@ -188,6 +216,8 @@ Type `quit`, `exit`, or `q` to exit the chat.
 ---
 
 ## 10. Example Commands
+
+### Full Training Mode
 
 ```bash
 # Train the model (3 epochs on Alpaca 52K)
@@ -205,6 +235,19 @@ With custom adapter path:
 python main.py train --adapter_path checkpoints/lora_phi3
 python main.py eval --adapter_path checkpoints/lora_phi3
 python main.py chat --adapter_path checkpoints/lora_phi3
+```
+
+### Demo Mode
+
+```bash
+# Quick demo training (completes in seconds)
+python main.py train --demo
+
+# Quick demo evaluation
+python main.py eval --demo
+
+# Quick demo chat
+python main.py chat --demo
 ```
 
 ---
@@ -229,6 +272,8 @@ With 4-bit quantization, training is feasible on GPUs with 8–12 GB VRAM. Large
 - Compute is performed in **bfloat16** for numerical stability.
 - LoRA adapters are trained on top of the quantized model; only the adapter weights are stored and can be applied to the base model at inference time.
 - Quantization may slightly affect generation quality but allows fine-tuning on consumer hardware.
+
+**Note:** Demo mode (`--demo`) does not use quantization or LoRA. It uses a small GPT-style model for fast execution.
 
 ---
 
