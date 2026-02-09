@@ -7,6 +7,8 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
 from transformers import PreTrainedTokenizer
 
+from src import config
+
 
 ALPACA_DATASET_ID = "yahma/alpaca-cleaned"
 
@@ -47,6 +49,13 @@ def get_alpaca_dataloaders(
     Returns:
         (train_dataloader, val_dataloader).
     """
+    if config.DEMO_MODE:
+        # Override settings for a very small, fast demo run.
+        max_length = min(max_length, config.DEMO_MAX_LENGTH)
+        train_batch_size = config.DEMO_TRAIN_BATCH_SIZE
+        val_batch_size = config.DEMO_VAL_BATCH_SIZE
+        val_ratio = min(val_ratio, 0.1)
+
     if val_batch_size is None:
         val_batch_size = train_batch_size
 
@@ -54,6 +63,9 @@ def get_alpaca_dataloaders(
         tokenizer.pad_token = tokenizer.eos_token
 
     dataset = load_dataset(ALPACA_DATASET_ID, split="train", trust_remote_code=True)
+    if config.DEMO_MODE:
+        max_samples = min(config.DEMO_DATASET_MAX_SAMPLES, len(dataset))
+        dataset = dataset.select(range(max_samples))
     split = dataset.train_test_split(test_size=val_ratio, seed=seed)
     train_ds = split["train"]
     val_ds = split["test"]

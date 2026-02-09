@@ -1,4 +1,4 @@
-"""Load Phi-3 Mini in 4-bit quantized mode, ready for LoRA fine-tuning."""
+"""Model loading utilities."""
 
 from typing import Any, Optional
 
@@ -6,8 +6,10 @@ import torch
 from peft import prepare_model_for_kbit_training
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+from src import config
 
-PHI3_MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+
+PHI3_MODEL_ID = config.PHI3_MODEL_ID
 
 
 def _ensure_rope_scaling(config: Any) -> None:
@@ -16,14 +18,14 @@ def _ensure_rope_scaling(config: Any) -> None:
     # have "type" (only "longrope" is accepted). New Hub configs sometimes have a dict without
     # "type", which causes KeyError in _init_rope. Normalize: leave None as-is; if dict missing
     # "type", set rope_scaling to None for 4k so we use standard RoPE.
-    current = getattr(config, "rope_scaling", None)
-    if current is None:
+    current_rs = getattr(config, "rope_scaling", None)
+    if current_rs is None:
         return
-    if isinstance(current, dict) and current.get("type") is None:
+    if isinstance(current_rs, dict) and current_rs.get("type") is None:
         config.rope_scaling = None
         if hasattr(config, "__dict__"):
             config.__dict__["rope_scaling"] = None
-    elif isinstance(current, dict) and hasattr(config, "__dict__"):
+    elif isinstance(current_rs, dict) and hasattr(config, "__dict__"):
         config.__dict__["rope_scaling"] = config.rope_scaling
 
 
@@ -52,6 +54,22 @@ def load_phi3_4bit(
     if bnb_4bit_compute_dtype is None:
         bnb_4bit_compute_dtype = torch.bfloat16
 
+    # Demo mode: load a tiny model on CPU (or lightweight CUDA) without quantization.
+    if config.DEMO_MODE:
+        tiny_id = config.TINY_DEMO_MODEL_ID
+        tokenizer = AutoTokenizer.from_pretrained(tiny_id, trust_remote_code=trust_remote_code)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = AutoModelForCausalLM.from_pretrained(
+            tiny_id,
+            trust_remote_code=trust_remote_code,
+        )
+        model.to(device)
+        return model, tokenizer
+
+    # Full mode: 4-bit Phi-3 Mini with bitsandbytes quantization.
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
         trust_remote_code=trust_remote_code,
@@ -66,12 +84,12 @@ def load_phi3_4bit(
         bnb_4bit_use_double_quant=True,
     )
 
-    config = AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)
-    _ensure_rope_scaling(config)
+    cfg = AutoConfig.from_pretrained(model_id, trust_remote_code=trust_remote_code)
+    _ensure_rope_scaling(cfg)
 
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
-        config=config,
+        config=cfg,
         quantization_config=quantization_config,
         device_map="auto",
         trust_remote_code=trust_remote_code,

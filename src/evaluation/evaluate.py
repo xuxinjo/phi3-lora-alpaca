@@ -18,10 +18,11 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 
+from src import config
 from src.models import load_phi3_4bit
 
 
-PHI3_MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+PHI3_MODEL_ID = config.PHI3_MODEL_ID
 ALPACA_DATASET_ID = "yahma/alpaca-cleaned"
 DEFAULT_ADAPTER_PATH = "checkpoints/lora_phi3"
 NUM_ROUGE_BLEU_SAMPLES = 200
@@ -43,13 +44,13 @@ def _format_full_text(instruction: str, input_text: str, output: str) -> str:
 
 
 def load_base_model():
-    """Load 4-bit Phi-3 (no LoRA)."""
+    """Load base model (Phi-3 or tiny demo model)."""
     model, tokenizer = load_phi3_4bit()
     return model, tokenizer
 
 
 def load_finetuned_model(adapter_path: str):
-    """Load base Phi-3 and apply LoRA adapter; tokenizer from base model (adapter dir may lack full tokenizer)."""
+    """Load base model and apply LoRA adapter; tokenizer from base model."""
     model, tokenizer = load_phi3_4bit()
     model = PeftModel.from_pretrained(model, adapter_path)
     return model, tokenizer
@@ -156,14 +157,26 @@ def run_evaluation(adapter_path: str, seed: int = 42) -> None:
     ds = load_dataset(ALPACA_DATASET_ID, split="train", trust_remote_code=True)
     split = ds.train_test_split(test_size=0.05, seed=seed)
     val = split["test"]
+    if config.DEMO_MODE:
+        max_samples = min(config.DEMO_DATASET_MAX_SAMPLES, len(val))
+        val = val.select(range(max_samples))
+
     val_list = [val[i] for i in range(len(val))]
 
-    perp_examples = val_list[: min(PERPLEXITY_MAX_SAMPLES, len(val_list))]
-
-    if len(val_list) >= NUM_ROUGE_BLEU_SAMPLES:
-        rouge_bleu_indices = random.sample(range(len(val_list)), NUM_ROUGE_BLEU_SAMPLES)
+    if config.DEMO_MODE:
+        max_perp = min(config.DEMO_DATASET_MAX_SAMPLES, len(val_list))
+        perp_examples = val_list[:max_perp]
     else:
-        rouge_bleu_indices = list(range(len(val_list)))
+        perp_examples = val_list[: min(PERPLEXITY_MAX_SAMPLES, len(val_list))]
+
+    if config.DEMO_MODE:
+        sample_count = min(config.DEMO_DATASET_MAX_SAMPLES, len(val_list))
+        rouge_bleu_indices = list(range(sample_count))
+    else:
+        if len(val_list) >= NUM_ROUGE_BLEU_SAMPLES:
+            rouge_bleu_indices = random.sample(range(len(val_list)), NUM_ROUGE_BLEU_SAMPLES)
+        else:
+            rouge_bleu_indices = list(range(len(val_list)))
     rouge_bleu_examples = [val_list[i] for i in rouge_bleu_indices]
     references = [ex["output"].strip() for ex in rouge_bleu_examples]
 

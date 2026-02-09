@@ -13,9 +13,10 @@ import torch
 from peft import PeftModel
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
+from src import config
 from src.models.load_model import _ensure_rope_scaling
 
-DEFAULT_BASE_MODEL = "microsoft/Phi-3-mini-4k-instruct"
+DEFAULT_BASE_MODEL = config.PHI3_MODEL_ID
 DEFAULT_LORA_PATH = "checkpoints/lora_phi3"
 DEFAULT_OUTPUT_PATH = "merged_model/phi3_alpaca_lora_merged"
 

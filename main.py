@@ -1,15 +1,8 @@
-"""
-CLI for Phi-3 Mini LoRA on Alpaca: train, evaluate, or chat.
-
-Usage:
-    python main.py train
-    python main.py eval [--adapter_path checkpoints/lora_phi3]
-    python main.py chat [--adapter_path checkpoints/lora_phi3]
-"""
-
 import argparse
 import sys
 from pathlib import Path
+
+from src import config
 
 _project_root = Path(__file__).resolve().parent
 if str(_project_root) not in sys.path:
@@ -20,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Phi-3 Mini LoRA on Alpaca: train, evaluate, or chat",
     )
+
     subparsers = parser.add_subparsers(dest="command", required=True, help="Command to run")
 
     train_parser = subparsers.add_parser("train", help="Run LoRA fine-tuning")
@@ -29,6 +23,11 @@ def main():
         type=str,
         default="checkpoints/lora_phi3",
         help="Directory to save LoRA adapter (default: checkpoints/lora_phi3)",
+    )
+    train_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run in lightweight demo mode (tiny model, small dataset).",
     )
 
     eval_parser = subparsers.add_parser("eval", help="Run evaluation (base vs fine-tuned)")
@@ -40,6 +39,11 @@ def main():
         help="Path to saved LoRA adapter (default: checkpoints/lora_phi3)",
     )
     eval_parser.add_argument("--seed", type=int, default=42, help="Random seed for val split")
+    eval_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run in lightweight demo mode (tiny model, small dataset).",
+    )
 
     chat_parser = subparsers.add_parser("chat", help="Run inference (interactive chat)")
     chat_parser.set_defaults(func=_run_chat)
@@ -49,12 +53,18 @@ def main():
         default="checkpoints/lora_phi3",
         help="Path to saved LoRA adapter (default: checkpoints/lora_phi3)",
     )
+    chat_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run in lightweight demo mode (tiny model, small dataset).",
+    )
 
     args = parser.parse_args()
     args.func(args)
 
 
 def _run_train(args: argparse.Namespace) -> None:
+    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.training.train_lora import train
 
     import src.training.train_lora as train_lora
@@ -63,12 +73,14 @@ def _run_train(args: argparse.Namespace) -> None:
 
 
 def _run_eval(args: argparse.Namespace) -> None:
+    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.evaluation.evaluate import run_evaluation
 
     run_evaluation(adapter_path=args.adapter_path, seed=args.seed)
 
 
 def _run_chat(args: argparse.Namespace) -> None:
+    config.DEMO_MODE = bool(getattr(args, "demo", False))
     from src.inference.generate import run_chat
 
     run_chat(adapter_path=args.adapter_path)

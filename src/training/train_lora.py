@@ -1,15 +1,20 @@
 """
-Train Phi-3 Mini with LoRA on Alpaca (yahma/alpaca-cleaned) using transformers.Trainer.
+Training entry point.
 
-Loads 4-bit model + tokenizer, applies LoRA, loads dataset, trains 3 epochs,
-saves adapter to checkpoints/lora_phi3.
+- In full mode: trains Phi-3 Mini with LoRA on Alpaca using transformers.Trainer.
+- In demo mode: runs a very lightweight loop on a tiny model and a small subset
+  of the dataset, with a fast-moving progress bar.
 """
 
 from pathlib import Path
+import time
 
+import torch
 from peft import get_peft_model
+from tqdm import tqdm
 from transformers import Trainer, TrainingArguments, DataCollatorForLanguageModeling
 
+from src import config
 from src.data import get_alpaca_dataloaders
 from src.models import load_phi3_4bit, get_phi3_lora_config
 
@@ -17,8 +22,37 @@ from src.models import load_phi3_4bit, get_phi3_lora_config
 OUTPUT_DIR = "checkpoints/lora_phi3"
 
 
+def _demo_train_loop(model, train_loader, tokenizer) -> None:
+    """Very small, fast training loop for demo mode."""
+    device = next(model.parameters()).device
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+    model.train()
+
+    print("Starting demo training (tiny model, 1 epoch)...")
+    steps = len(train_loader)
+    progress = tqdm(enumerate(train_loader, start=1), total=steps, desc="Demo training")
+
+    for step, batch in progress:
+        time.sleep(0.05)  # keep things light but visibly active
+        batch = {k: torch.tensor(v, device=device) if not isinstance(v, torch.Tensor) else v.to(device) for k, v in batch.items()}
+        outputs = model(**batch)
+        loss = outputs.loss
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        progress.set_postfix({"loss": f"{loss.item():.4f}"})
+
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(OUTPUT_DIR)
+    tokenizer.save_pretrained(OUTPUT_DIR)
+    print(f"Demo LoRA adapter and tokenizer saved to {OUTPUT_DIR}")
+
+
 def train() -> None:
-    print("Loading Phi-3 Mini (4-bit)...")
+    if config.DEMO_MODE:
+        print("Running in demo mode (tiny model, tiny dataset).")
+
+    print("Loading model...")
     model, tokenizer = load_phi3_4bit()
 
     print("Applying LoRA adapters...")
@@ -38,6 +72,12 @@ def train() -> None:
     train_dataset = train_loader.dataset
     val_dataset = val_loader.dataset
 
+    # Demo mode: use the lightweight custom loop.
+    if config.DEMO_MODE:
+        _demo_train_loop(model, train_loader, tokenizer)
+        return
+
+    # Full mode: standard Trainer setup.
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         num_train_epochs=3,

@@ -11,8 +11,10 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from src import config
 
-PHI3_MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+
+PHI3_MODEL_ID = config.PHI3_MODEL_ID
 DEFAULT_ADAPTER_PATH = "checkpoints/lora_phi3"
 
 _model = None
@@ -33,17 +35,25 @@ def _load_model(adapter_path: str = DEFAULT_ADAPTER_PATH):
         )
 
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    base_model_id = config.TINY_DEMO_MODEL_ID if config.DEMO_MODE else PHI3_MODEL_ID
     # Load tokenizer from base model; adapter dir may lack full tokenizer or need sentencepiece/tiktoken.
-    _tokenizer = AutoTokenizer.from_pretrained(PHI3_MODEL_ID, trust_remote_code=True)
+    _tokenizer = AutoTokenizer.from_pretrained(base_model_id, trust_remote_code=True)
     if _tokenizer.pad_token is None:
         _tokenizer.pad_token = _tokenizer.eos_token
 
-    base = AutoModelForCausalLM.from_pretrained(
-        PHI3_MODEL_ID,
-        torch_dtype=dtype,
-        device_map="auto",
-        trust_remote_code=True,
-    )
+    if config.DEMO_MODE:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        base = AutoModelForCausalLM.from_pretrained(
+            base_model_id,
+            trust_remote_code=True,
+        ).to(device)
+    else:
+        base = AutoModelForCausalLM.from_pretrained(
+            base_model_id,
+            torch_dtype=dtype,
+            device_map="auto",
+            trust_remote_code=True,
+        )
     _model = PeftModel.from_pretrained(base, adapter_path)
     _model.eval()
     return _model, _tokenizer
