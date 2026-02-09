@@ -8,7 +8,9 @@ DEMO_MODE: bool = False
 
 # Base models
 PHI3_MODEL_ID: str = "microsoft/Phi-3-mini-4k-instruct"
-TINY_DEMO_MODEL_ID: str = "sshleifer/tiny-gpt2"
+# Tiny demo model uses safetensors (no .bin load), so it avoids torch.load
+# safety checks on older torch versions.
+TINY_DEMO_MODEL_ID: str = "hf-internal-testing/tiny-random-gpt2"
 
 # Demo-mode hyperparameters
 DEMO_MAX_LENGTH: int = 64
