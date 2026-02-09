@@ -294,3 +294,4 @@ Please review the respective licenses before commercial use.
 - **[Microsoft](https://www.microsoft.com/)** — Phi-3 Mini language model
 - **[Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca)** — Original Alpaca instruction dataset
 - **yahma** — [alpaca-cleaned](https://huggingface.co/datasets/yahma/alpaca-cleaned) dataset
+"# phi3-lora-alpaca" 
